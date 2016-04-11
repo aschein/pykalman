@@ -736,28 +736,21 @@ def _em_observation_covariance(observations, observation_offsets,
     n_obs = 0
     for t in range(n_timesteps):
         if not np.any(np.ma.getmask(observations[t])):
-
-            if(False):
-                transition_matrix = _last_dims(transition_matrices, t)
-                transition_offset = _last_dims(observation_offsets, t, ndims=1)
-                err = (
-                    observations[t]
-                    - np.dot(transition_matrix, smoothed_state_means[t])
-                    - transition_offset
-                )
-                res += (
-                    np.outer(err, err)
-                    + np.dot(transition_matrix,
-                             np.dot(smoothed_state_covariances[t],
-                                    transition_matrix.T))
-                )
-                n_obs += 1
-            else:
-                transition_matrix = _last_dims(transition_matrices, t)
-                transition_offset = _last_dims(observation_offsets, t, ndims=1)
-                tmp = np.outer(observations[t],np.dot(transition_matrix,smoothed_state_means[t]))
-                res += np.outer(observations[t],observations[t]) - tmp - tmp.T + np.dot(transition_matrix,np.dot(smoothed_state_covariances[t],transition_matrix.T))
-
+            n_obs += 1
+            transition_matrix = _last_dims(transition_matrices, t)
+            transition_offset = _last_dims(observation_offsets, t, ndims=1)
+            err = (
+                observations[t]
+                - np.dot(transition_matrix, smoothed_state_means[t])
+                - transition_offset
+            )
+            res += (
+                np.outer(err, err)
+                + np.dot(transition_matrix,
+                         np.dot(smoothed_state_covariances[t],
+                                transition_matrix.T))
+            )
+        
     if n_obs > 0:
         res = (1.0 / n_obs) * res
     
@@ -1439,8 +1432,15 @@ class KalmanFilter(object):
                 smoothed_state_covariances,
                 kalman_smoothing_gains
             )
+
+
             if(self.learning_config['compute_likelihood']):
-                raise ValueError('not implemented yet')
+                likelihoods = _loglikelihoods(self.observation_matrices, self.observation_offsets,
+                    self.observation_covariance, predicted_state_means,
+                    predicted_state_covariances, Z)
+                likelihood = np.sum(likelihoods)
+                print('Iter {}: {}'.format(i,likelihood))
+
             (self.transition_matrices,  self.observation_matrices,
              self.transition_offsets, self.observation_offsets,
              self.transition_covariance, self.observation_covariance,

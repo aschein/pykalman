@@ -13,7 +13,7 @@ if __name__ == '__main__':
     N_TV = data_file['Y']  # TxV count matrix
 
     K = 10  # number of components
-    V = 150  # number of columns to subset out
+    V = 50  # number of columns to subset out
     N_TV = N_TV[:, :V]
 
     S = 10   # number of forecasting timesteps
@@ -40,7 +40,7 @@ if __name__ == '__main__':
                'initial_state_covariance',
                'initial_state_mean']
 
-    kf = kf.em(Y_TV, n_iter=10, em_vars=em_vars)  # fit the model
+    kf = kf.em(Y_TV, n_iter=25, em_vars=em_vars)  # fit the model
 
     Lambda_KK = kf.transition_matrices
     assert (np.abs(np.linalg.eigvals(Lambda_KK)) <= 1.).all()
