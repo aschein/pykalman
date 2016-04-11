@@ -12,7 +12,7 @@ if __name__ == '__main__':
     data_file = np.load('../../pykalman/datasets/icews/data.npz')
     N_TV = data_file['Y']  # TxV count matrix
 
-    K = 25  # number of components
+    K = 10  # number of components
     V = 150  # number of columns to subset out
     N_TV = N_TV[:, :V]
 
@@ -28,9 +28,10 @@ if __name__ == '__main__':
     Phi_VK = rn.normal(0, 0.25, size=(V, K))     # initialize VxK observation matrix
     #Phi_VK = rn.uniform(-0.75, 0.75, size=(V, K))     # initialize VxK observation matrix
 
+    learning_config = {'stabilize':False,'diagonal': False,'compute_likelihood': True}
     kf = KalmanFilter(observation_matrices=Phi_VK,
                       transition_matrices=Lambda_KK,
-                      stabilize=False)  # stabilize=True uses the SVD trick to make sure eigenvalues<1
+                      learning_config=learning_config)  # stabilize=True uses the SVD trick to make sure eigenvalues<1
 
     em_vars = ['transition_covariance',
                'transition_matrices',
@@ -39,7 +40,7 @@ if __name__ == '__main__':
                'initial_state_covariance',
                'initial_state_mean']
 
-    kf = kf.em(Y_TV, n_iter=50, em_vars=em_vars)  # fit the model
+    kf = kf.em(Y_TV, n_iter=10, em_vars=em_vars)  # fit the model
 
     Lambda_KK = kf.transition_matrices
     assert (np.abs(np.linalg.eigvals(Lambda_KK)) <= 1.).all()

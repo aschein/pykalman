@@ -564,7 +564,7 @@ def _smooth_pair(smoothed_state_covariances, kalman_smoothing_gain):
 
 def _em(observations, transition_offsets, observation_offsets,
         smoothed_state_means, smoothed_state_covariances, pairwise_covariances,
-        given={}, stabilize=False):
+        learning_config,given={}):
     """Apply the EM Algorithm to the Linear-Gaussian model
 
     Estimate Linear-Gaussian model parameters by maximizing the expected log
@@ -629,7 +629,8 @@ def _em(observations, transition_offsets, observation_offsets,
         observation_covariance = _em_observation_covariance(
             observations, observation_offsets,
             observation_matrix, smoothed_state_means,
-            smoothed_state_covariances
+            smoothed_state_covariances,
+            learning_config['diagonal']
         )
 
     if 'transition_matrices' in given:
@@ -638,7 +639,7 @@ def _em(observations, transition_offsets, observation_offsets,
         transition_matrix = _em_transition_matrix(
             transition_offsets, smoothed_state_means,
             smoothed_state_covariances, pairwise_covariances,
-            stabilize=stabilize
+            stabilize=learning_config['stabilize']
         )
 
     if 'transition_covariance' in given:
@@ -716,7 +717,7 @@ def _em_observation_matrix(observations, observation_offsets,
 
 def _em_observation_covariance(observations, observation_offsets,
                                transition_matrices, smoothed_state_means,
-                               smoothed_state_covariances):
+                               smoothed_state_covariances,diagonal):
     """Apply the EM algorithm to parameter `observation_covariance`
 
     Maximize expected log likelihood of observations with respect to the
@@ -758,9 +759,11 @@ def _em_observation_covariance(observations, observation_offsets,
                 res += np.outer(observations[t],observations[t]) - tmp - tmp.T + np.dot(transition_matrix,np.dot(smoothed_state_covariances[t],transition_matrix.T))
 
     if n_obs > 0:
-        return (1.0 / n_obs) * res
-    else:
-        return res
+        res = (1.0 / n_obs) * res
+    
+    if(diagonal):
+        res = np.diag(np.diag(res))
+    return res
 
 
 def _em_transition_matrix(transition_offsets, smoothed_state_means,
@@ -1028,7 +1031,7 @@ class KalmanFilter(object):
             random_state=None,
             em_vars=['transition_covariance', 'observation_covariance',
                      'initial_state_mean', 'initial_state_covariance'],
-            n_dim_state=None, n_dim_obs=None, stabilize=False):
+            n_dim_state=None, n_dim_obs=None, learning_config={'stabilize': False, 'diagonal': False, 'compute_likelihood': False}):
         """Initialize Kalman Filte"""
         # determine size of state space
         n_dim_state = _determine_dimensionality(
@@ -1059,7 +1062,7 @@ class KalmanFilter(object):
         self.em_vars = em_vars
         self.n_dim_state = n_dim_state
         self.n_dim_obs = n_dim_obs
-        self.stabilize = stabilize
+        self.learning_config = learning_config
 
     def sample(self, n_timesteps, initial_state=None, random_state=None):
         """Sample a state sequence :math:`n_{\\text{timesteps}}` timesteps in
@@ -1436,13 +1439,15 @@ class KalmanFilter(object):
                 smoothed_state_covariances,
                 kalman_smoothing_gains
             )
+            if(self.learning_config['compute_likelihood']):
+                raise ValueError('not implemented yet')
             (self.transition_matrices,  self.observation_matrices,
              self.transition_offsets, self.observation_offsets,
              self.transition_covariance, self.observation_covariance,
              self.initial_state_mean, self.initial_state_covariance) = (
                 _em(Z, self.transition_offsets, self.observation_offsets,
                     smoothed_state_means, smoothed_state_covariances,
-                    sigma_pair_smooth, given=given, stabilize=self.stabilize
+                    sigma_pair_smooth, given=given, learning_config=self.learning_config
                 )
             )
         return self
@@ -1512,7 +1517,7 @@ class KalmanFilter(object):
                 'initial_state_mean',
                 'initial_state_covariance'
             ],
-            'stabilize': False
+            'learning_config': {'stabilize': False, 'diagonal': False, 'compute_likelihood': False}
         }
         converters = {
             'transition_matrices': array2d,
@@ -1527,7 +1532,7 @@ class KalmanFilter(object):
             'n_dim_state': int,
             'n_dim_obs': int,
             'em_vars': lambda x: x,
-            'stabilize': bool
+            'learning_config': lambda x: x
         }
 
         parameters = preprocess_arguments([arguments, defaults], converters)
