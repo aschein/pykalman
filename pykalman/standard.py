@@ -735,20 +735,28 @@ def _em_observation_covariance(observations, observation_offsets,
     n_obs = 0
     for t in range(n_timesteps):
         if not np.any(np.ma.getmask(observations[t])):
-            transition_matrix = _last_dims(transition_matrices, t)
-            transition_offset = _last_dims(observation_offsets, t, ndims=1)
-            err = (
-                observations[t]
-                - np.dot(transition_matrix, smoothed_state_means[t])
-                - transition_offset
-            )
-            res += (
-                np.outer(err, err)
-                + np.dot(transition_matrix,
-                         np.dot(smoothed_state_covariances[t],
-                                transition_matrix.T))
-            )
-            n_obs += 1
+
+            if(False):
+                transition_matrix = _last_dims(transition_matrices, t)
+                transition_offset = _last_dims(observation_offsets, t, ndims=1)
+                err = (
+                    observations[t]
+                    - np.dot(transition_matrix, smoothed_state_means[t])
+                    - transition_offset
+                )
+                res += (
+                    np.outer(err, err)
+                    + np.dot(transition_matrix,
+                             np.dot(smoothed_state_covariances[t],
+                                    transition_matrix.T))
+                )
+                n_obs += 1
+            else:
+                transition_matrix = _last_dims(transition_matrices, t)
+                transition_offset = _last_dims(observation_offsets, t, ndims=1)
+                tmp = np.outer(observations[t],np.dot(transition_matrix,smoothed_state_means[t]))
+                res += np.outer(observations[t],observations[t]) - tmp - tmp.T + np.dot(transition_matrix,np.dot(smoothed_state_covariances[t],transition_matrix.T))
+
     if n_obs > 0:
         return (1.0 / n_obs) * res
     else:
@@ -1022,7 +1030,6 @@ class KalmanFilter(object):
                      'initial_state_mean', 'initial_state_covariance'],
             n_dim_state=None, n_dim_obs=None, stabilize=False):
         """Initialize Kalman Filte"""
-
         # determine size of state space
         n_dim_state = _determine_dimensionality(
             [(transition_matrices, array2d, -2),

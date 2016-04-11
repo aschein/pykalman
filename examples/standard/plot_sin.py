@@ -47,7 +47,12 @@ position_line = pl.plot(x, states_pred[:, 0],
 velocity_line = pl.plot(x, states_pred[:, 1],
                         linestyle='-', marker='o', color='g',
                         label='velocity est.')
+
 pl.legend(loc='lower right')
 pl.xlim(xmin=0, xmax=x.max())
 pl.xlabel('time')
+print('here')
 pl.show()
+
+
+

@@ -5,15 +5,15 @@ import seaborn as sns
 import scipy.stats as st
 import sys
 
+rn.seed(1234)
 from pykalman import KalmanFilter
-
 
 if __name__ == '__main__':
     data_file = np.load('../../pykalman/datasets/icews/data.npz')
     N_TV = data_file['Y']  # TxV count matrix
 
     K = 25  # number of components
-    V = 50  # number of columns to subset out
+    V = 150  # number of columns to subset out
     N_TV = N_TV[:, :V]
 
     S = 10   # number of forecasting timesteps
@@ -23,9 +23,10 @@ if __name__ == '__main__':
 
     E_V = N_TV.mean(axis=0)
     Y_TV = N_TV - E_V  # TxV zero-mean real matrix
-
-    Lambda_KK = rn.uniform(-0.75, 0.75, size=(K, K))  # initialize KxK state transition matrix
-    Phi_VK = rn.uniform(-0.75, 0.75, size=(V, K))     # initialize VxK observation matrix
+    Lambda_KK = np.diag(rn.uniform(-0.9,0.9,size=(K)))
+    #Lambda_KK = rn.uniform(-0.75, 0.75, size=(K, K))  # initialize KxK state transition matrix
+    Phi_VK = rn.normal(0, 0.25, size=(V, K))     # initialize VxK observation matrix
+    #Phi_VK = rn.uniform(-0.75, 0.75, size=(V, K))     # initialize VxK observation matrix
 
     kf = KalmanFilter(observation_matrices=Phi_VK,
                       transition_matrices=Lambda_KK,
@@ -38,7 +39,7 @@ if __name__ == '__main__':
                'initial_state_covariance',
                'initial_state_mean']
 
-    kf = kf.em(Y_TV, em_vars=em_vars)  # fit the model
+    kf = kf.em(Y_TV, n_iter=50, em_vars=em_vars)  # fit the model
 
     Lambda_KK = kf.transition_matrices
     assert (np.abs(np.linalg.eigvals(Lambda_KK)) <= 1.).all()
@@ -48,7 +49,7 @@ if __name__ == '__main__':
 
     # predict the test set (Y_SV)
     pred_Y_SV = np.zeros((S, V))
-    z_K = kf.smooth(Y_TV)[0][-1]
+    z_K = kf.filter(Y_TV)[0][-1]
     for s in xrange(S):
         z_K = np.dot(Lambda_KK, z_K)
         pred_Y_SV[s] = np.dot(Phi_VK, z_K)
